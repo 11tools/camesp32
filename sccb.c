@@ -24,7 +24,7 @@ static const char* TAG = "sccb";
 
 #include "driver/i2c.h"
 
-#define SCCB_FREQ               100000           /*!< I2C master frequency*/
+#define SCCB_FREQ               10000           /*!< I2C master frequency*/
 #define WRITE_BIT               I2C_MASTER_WRITE /*!< I2C master write */
 #define READ_BIT                I2C_MASTER_READ  /*!< I2C master read */
 #define ACK_CHECK_EN            0x1              /*!< I2C master will check ack from slave*/
@@ -59,7 +59,7 @@ int SCCB_Init(int pin_sda, int pin_scl)
 uint8_t SCCB_Probe()
 {
     uint8_t slave_addr = 0x0;
-    while(slave_addr < 0x7f) {
+    while(slave_addr < 0xff) {
         i2c_cmd_handle_t cmd = i2c_cmd_link_create();
         i2c_master_start(cmd);
         i2c_master_write_byte(cmd, ( slave_addr << 1 ) | WRITE_BIT, ACK_CHECK_EN);

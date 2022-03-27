@@ -54,7 +54,9 @@
 #if CONFIG_OV7670_SUPPORT
 #include "ov7670.h"
 #endif
-
+#if CONFIG_TVP5150_SUPPORT
+#include "tvp5150.h"
+#endif
 typedef enum {
     CAMERA_NONE = 0,
     CAMERA_UNKNOWN = 1,
@@ -64,6 +66,7 @@ typedef enum {
     CAMERA_OV5640 = 5640,
     CAMERA_OV7670 = 7670,
     CAMERA_NT99141 = 9141,
+    CAMERA_TVP5150 = 5150,
 } camera_model_t;
 
 #define REG_PID        0x0A
@@ -1027,6 +1030,18 @@ esp_err_t camera_probe(const camera_config_t* config, camera_model_t* out_camera
         slv_addr = SCCB_Probe();
     }
 #endif
+
+#if CONFIG_TVP5150_SUPPORT
+    if (slv_addr == 0xB8) {
+        ESP_LOGD(TAG, "Resetting TVP5150");
+        //camera might be TVP5150. try to reset it
+        SCCB_Write(0xB8, 0x05, 0x01);//reset
+        vTaskDelay(10 / portTICK_PERIOD_MS);
+        slv_addr = SCCB_Probe();
+    }
+
+#endif
+
 #if CONFIG_NT99141_SUPPORT
    if (slv_addr == 0x2a)
     {
@@ -1038,7 +1053,7 @@ esp_err_t camera_probe(const camera_config_t* config, camera_model_t* out_camera
     s_state->sensor.slv_addr = slv_addr;
     s_state->sensor.xclk_freq_hz = config->xclk_freq_hz;
 
-#if (CONFIG_OV3660_SUPPORT || CONFIG_OV5640_SUPPORT || CONFIG_NT99141_SUPPORT)
+#if (CONFIG_OV3660_SUPPORT || CONFIG_OV5640_SUPPORT || CONFIG_NT99141_SUPPORT || CONFIG_TVP5150_SUPPORT)
     if(s_state->sensor.slv_addr == 0x3c){
         id->PID = SCCB_Read16(s_state->sensor.slv_addr, REG16_CHIDH);
         id->VER = SCCB_Read16(s_state->sensor.slv_addr, REG16_CHIDL);
@@ -1054,7 +1069,19 @@ esp_err_t camera_probe(const camera_config_t* config, camera_model_t* out_camera
             ESP_LOGE(TAG, "NT99141: only XCLK under 10MHz is supported, and XCLK is now set to 10M");
             s_state->sensor.xclk_freq_hz = 10000000;
         }    
-    } else {
+    } else if(s_state->sensor.slv_addr == 0x5c){
+        id->PID = SCCB_Read(s_state->sensor.slv_addr, 0x80);
+        id->VER = SCCB_Read(s_state->sensor.slv_addr, 0x81);
+        
+        vTaskDelay(10 / portTICK_PERIOD_MS);
+        ESP_LOGD(TAG, "TVP5150 PID=0x%02x VER=0x%02x", id->PID, id->VER);
+        if(config->xclk_freq_hz > 0)
+        {
+            ESP_LOGE(TAG, "TVP5150: use module self xclk");
+            s_state->sensor.xclk_freq_hz = 0;
+        }
+    }
+    else {
 #endif
         id->PID = SCCB_Read(s_state->sensor.slv_addr, REG_PID);
         id->VER = SCCB_Read(s_state->sensor.slv_addr, REG_VER);
@@ -1104,6 +1131,13 @@ esp_err_t camera_probe(const camera_config_t* config, camera_model_t* out_camera
         case NT99141_PID:
         *out_camera_model = CAMERA_NT99141;
         NT99141_init(&s_state->sensor);
+        break;
+#endif
+
+#if CONFIG_TVP5150_SUPPORT
+        case TVP5150_PID:
+        *out_camera_model = CAMERA_TVP5150;
+        tvp5150_init(&s_state->sensor);
         break;
 #endif
     default:
@@ -1176,6 +1210,14 @@ esp_err_t camera_init(const camera_config_t* config)
             }
             break;
 #endif
+#if CONFIG_TVP5150_SUPPORT
+        case TVP5150_PID:
+            if (frame_size > FRAMESIZE_HD) {
+                frame_size = FRAMESIZE_SVGA;
+            }
+            break;
+#endif
+
         default:
             return ESP_ERR_CAMERA_NOT_SUPPORTED;
     }
@@ -1394,9 +1436,12 @@ esp_err_t esp_camera_init(const camera_config_t* config)
         ESP_LOGI(TAG, "Detected OV5640 camera");
     } else if (camera_model == CAMERA_OV7670) {
         ESP_LOGI(TAG, "Detected OV7670 camera");
-    } else if (camera_model == CAMERA_NT99141) {
+    } else if (camera_model == CAMERA_NT99141){
         ESP_LOGI(TAG, "Detected NT99141 camera");
-    } else {
+    } else if(camera_model == CAMERA_TVP5150) {
+        ESP_LOGI(TAG, "Detected TVP5150 camera");
+    }
+    else {
         ESP_LOGI(TAG, "Camera not supported");
         err = ESP_ERR_CAMERA_NOT_SUPPORTED;
         goto fail;

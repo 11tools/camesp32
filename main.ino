@@ -48,7 +48,6 @@ int pictureNumber = 0;
 
 void setup() {
   WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0); //disable brownout detector
- 
   Serial.begin(115200);
   //Serial.setDebugOutput(true);
   //Serial.println();
@@ -72,8 +71,9 @@ void setup() {
   config.pin_sscb_scl = SIOC_GPIO_NUM;
   config.pin_pwdn = PWDN_GPIO_NUM;
   config.pin_reset = RESET_GPIO_NUM;
-  config.xclk_freq_hz = 20000000;
-  config.pixel_format = PIXFORMAT_JPEG; 
+  config.xclk_freq_hz = 24000000;
+  config.frame_size = FRAMESIZE_SVGA;
+  config.pixel_format = PIXFORMAT_YUV422;
   
   if(psramFound()){
     config.frame_size = FRAMESIZE_UXGA; // FRAMESIZE_ + QVGA|CIF|VGA|SVGA|XGA|SXGA|UXGA
@@ -93,7 +93,7 @@ void setup() {
   }
   
   //Serial.println("Starting SD Card");
-  if(!SD_MMC.begin()){
+   if(!SD_MMC.begin()){
     Serial.println("SD Card Mount Failed");
     return;
   }
@@ -102,19 +102,19 @@ void setup() {
   if(cardType == CARD_NONE){
     Serial.println("No SD Card attached");
     return;
-  }
+  } 
     
 }
 
 
 void takeOnePicture(){
-  Serial.println("start take on picture");
+  //Serial.println("start take on picture");
   camera_fb_t * fb = NULL;
   
   // Take Picture with Camera
   fb = esp_camera_fb_get();  
   if(!fb) {
-    Serial.println("Camera capture failed");
+    //Serial.println("Camera capture failed");
     return;
   }
   // initialize EEPROM with predefined size
@@ -133,11 +133,13 @@ void takeOnePicture(){
   } 
   else {
     file.write(fb->buf, fb->len); // payload (image), payload length
-    Serial.printf("Saved file to path: %s\n", path.c_str());
+    Serial.printf("Saved file to path: %s size = %d\n", path.c_str(), fb->len);
     EEPROM.write(0, pictureNumber);
     EEPROM.commit();
   }
   file.close();
+
+
   esp_camera_fb_return(fb); 
   
   // Turns off the ESP32-CAM white on-board LED (flash) connected to GPIO 4
@@ -145,13 +147,26 @@ void takeOnePicture(){
   //digitalWrite(4, LOW);
   //rtc_gpio_hold_en(GPIO_NUM_4);
 
-  Serial.println("finish one frame");
+  //Serial.println("finish one frame");
   delay(5000);
 
 
 
 }
 
+
+void camera_show(void)
+{
+    if(Serial.read() == 'c'){
+        camera_fb_t *fb = esp_camera_fb_get();
+        if(fb!=NULL) {
+           Serial.write(fb->buf, fb->len);
+        }
+        esp_camera_fb_return(fb);
+    }
+}
+
 void loop() {
+  //camera_show();
   takeOnePicture();
 }

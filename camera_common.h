@@ -22,6 +22,14 @@
 #include "rom/lldesc.h"
 #endif
 
+#define CONFIG_OV2640_SUPPORT 1
+#define CONFIG_OV7725_SUPPORT 1
+#define CONFIG_OV3660_SUPPORT 1
+#define CONFIG_OV5640_SUPPORT 1
+#define CONFIG_NT99141_SUPPORT 1
+#define CONFIG_OV7670_SUPPORT 1
+#define CONFIG_TVP5150_SUPPORT 1
+
 typedef union {
     struct {
         uint8_t sample2;

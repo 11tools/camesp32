@@ -18,6 +18,7 @@
 #define OV3660_PID     (0x36)
 #define OV5640_PID     (0x56)
 #define OV7670_PID     (0x76)
+#define TVP5150_PID    (0x51)  // hardware read is 0x50
 
 typedef enum {
     PIXFORMAT_RGB565,    // 2BPP/RGB565
